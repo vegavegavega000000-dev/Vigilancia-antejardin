@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensores en conjunto</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --borde: #e3e5ea; --texto: #1b1e24; --suave: #6a7180; --tenue: #9aa0ab;
+    --acento: #2f6fde; --radar: #8a5cf5; --mov: #d98a12;
+    --verde: #1f9d55; --verde-bg: #e6f6ec; --ambar: #c27c0e; --ambar-bg: #fdf3e1;
+    --rojo: #d23c3c; --rojo-bg: #fdeaea; --morado: #8a4fd8; --morado-bg: #f3ecfd; --gris: #7b8190; --gris-bg: #eef0f3;
+    --pasto: #e9f3e4; --anden: #e7e7ea; --sombra: 0 1px 2px rgba(16,24,40,.05);
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1116; --panel: #161a21; --borde: #262c36; --texto: #e7eaf0; --suave: #9aa3b2; --tenue: #687180;
+      --acento: #5b93f5; --radar: #a985ff; --mov: #f0b24a;
+      --verde: #3fcb7e; --verde-bg: #11291c; --ambar: #f0b24a; --ambar-bg: #2e2412; --rojo: #f26b6b; --rojo-bg: #351616;
+      --morado: #b48cf7; --morado-bg: #261b3a; --gris: #8d95a3; --gris-bg: #1d222a; --pasto: #142019; --anden: #1c1f25; --sombra: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1116; --panel: #161a21; --borde: #262c36; --texto: #e7eaf0; --suave: #9aa3b2; --tenue: #687180;
+    --acento: #5b93f5; --radar: #a985ff; --mov: #f0b24a;
+    --verde: #3fcb7e; --verde-bg: #11291c; --ambar: #f0b24a; --ambar-bg: #2e2412; --rojo: #f26b6b; --rojo-bg: #351616;
+    --morado: #b48cf7; --morado-bg: #261b3a; --gris: #8d95a3; --gris-bg: #1d222a; --pasto: #142019; --anden: #1c1f25; --sombra: none;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--texto); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .envoltura { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  .sub { color: var(--suave); font-size: 13px; }
+  nav { display: flex; gap: 4px; background: var(--gris-bg); padding: 3px; border-radius: 10px; }
+  nav a { padding: 5px 12px; border-radius: 8px; color: var(--suave); text-decoration: none; font-weight: 500; font-size: 13px; }
+  nav a.activo { background: var(--panel); color: var(--texto); box-shadow: var(--sombra); }
+  .derecha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pildora { display: inline-flex; gap: 6px; align-items: center; padding: 5px 10px; border-radius: 999px; background: var(--gris-bg); color: var(--suave); font-size: 13px; font-weight: 500; }
+  .pildora .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--gris); }
+  .pildora.ok { background: var(--verde-bg); color: var(--verde); } .pildora.ok .punto { background: var(--verde); }
+  .pildora.mal { background: var(--rojo-bg); color: var(--rojo); } .pildora.mal .punto { background: var(--rojo); }
+  button { font: inherit; color: var(--texto); background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-weight: 500; }
+  button:hover { border-color: var(--suave); }
+  button.primario { background: var(--acento); border-color: var(--acento); color: #fff; }
+  button:disabled { opacity: .55; cursor: default; }
+  .rejilla { display: grid; gap: 14px; grid-template-columns: repeat(12, 1fr); }
+  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 16px; box-shadow: var(--sombra); min-width: 0; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); margin: 0 0 12px; font-weight: 600;
+              display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .c12 { grid-column: span 12; } .c7 { grid-column: span 7; } .c5 { grid-column: span 5; } .c6 { grid-column: span 6; }
+  @media (max-width: 980px) { .c7, .c5, .c6 { grid-column: span 12; } }
+
+  /* Interpretación conjunta */
+  .lectura { border-left: 6px solid var(--gris); display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; align-items: center; }
+  .lectura .icono { grid-row: span 2; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 26px; background: var(--gris-bg); }
+  .lectura .titulo { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+  .lectura .desc { color: var(--suave); }
+  .lectura.despejado { border-left-color: var(--verde); } .lectura.despejado .icono { background: var(--verde-bg); }
+  .lectura.confirmado { border-left-color: var(--rojo); } .lectura.confirmado .icono { background: var(--rojo-bg); } .lectura.confirmado .titulo { color: var(--rojo); }
+  .lectura.solo-radar { border-left-color: var(--radar); } .lectura.solo-radar .icono { background: var(--morado-bg); }
+  .lectura.solo-lidar { border-left-color: var(--acento); } .lectura.solo-lidar .icono { background: var(--gris-bg); }
+  .lectura.no-coinciden { border-left-color: var(--ambar); } .lectura.no-coinciden .icono { background: var(--ambar-bg); }
+  .decision-mini { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; font-size: 13px; color: var(--suave); }
+
+  /* Mapa */
+  .mapa { width: 100%; height: 520px; display: block; }
+  @media (max-width: 600px) { .mapa { height: 380px; } }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--suave); font-size: 12px; margin-top: 10px; }
+  .leyenda i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+
+  /* Columna derecha */
+  .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sensor { border: 1px solid var(--borde); border-radius: 10px; padding: 12px; }
+  .sensor .nombre { font-size: 12px; color: var(--suave); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .sensor .valor { font-size: 28px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 4px; }
+  .sensor .valor small { font-size: 14px; color: var(--suave); font-weight: 500; }
+  .sensor .nota { font-size: 12px; color: var(--suave); min-height: 36px; }
+  .acuerdo { margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--gris-bg); }
+  .acuerdo .barra { height: 8px; border-radius: 4px; background: var(--borde); position: relative; overflow: hidden; margin-top: 8px; }
+  .acuerdo .barra i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--verde); transition: width .3s; }
+  .fila { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid var(--borde); font-variant-numeric: tabular-nums; }
+  .fila:first-child { border-top: 0; }
+  .fila span:first-child { color: var(--suave); }
+  .calib { margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .calib .nota { color: var(--suave); font-size: 12px; flex: 1; min-width: 180px; }
+
+  /* Lista de prueba */
+  .chequeo { display: grid; grid-template-columns: 22px 1fr; gap: 2px 10px; padding: 9px 0; border-top: 1px solid var(--borde); }
+  .chequeo:first-child { border-top: 0; }
+  .chequeo .marca { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--gris-bg); color: var(--tenue); }
+  .chequeo.ok .marca { background: var(--verde); color: #fff; }
+  .chequeo.mal .marca { background: var(--ambar); color: #fff; }
+  .chequeo .t { font-weight: 600; }
+  .chequeo .d { grid-column: 2; color: var(--suave); font-size: 12px; }
+
+  /* Instalación */
+  .pasos { counter-reset: paso; display: grid; gap: 12px; }
+  .paso { display: grid; grid-template-columns: 34px 1fr; gap: 4px 12px; }
+  .paso::before { counter-increment: paso; content: counter(paso); grid-row: span 2; width: 30px; height: 30px; border-radius: 50%;
+                  background: var(--acento); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+  .paso h3 { margin: 4px 0 0; font-size: 15px; }
+  .paso ul { margin: 2px 0 0; padding-left: 18px; color: var(--texto); }
+  .paso li { margin: 3px 0; }
+  .paso li b { font-weight: 600; }
+  .aviso { background: var(--ambar-bg); color: var(--texto); border-radius: 10px; padding: 10px 12px; font-size: 13px; border-left: 4px solid var(--ambar); }
+  figure { margin: 0; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { color: var(--suave); font-size: 12px; margin-top: 6px; text-align: center; }
+  svg text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--gris-bg); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="envoltura">
+  <header>
+    <div>
+      <h1>Vigilancia del antejardín</h1>
+      <div class="sub">TF-Luna + radar LD2410C trabajando en conjunto</div>
+    </div>
+    <div class="derecha">
+      <nav><a href="/">Panel</a><a href="/conjunto" class="activo">En conjunto</a><a href="#instalacion">Instalación</a></nav>
+      <span class="pildora" id="pildora"><span class="punto"></span><span id="pildoraTexto">Conectando…</span></span>
+      <button id="btnTema" title="Cambiar tema">◐</button>
+    </div>
+  </header>
+
+  <div class="rejilla">
+    <!-- Interpretación conjunta -->
+    <section class="panel c12 lectura" id="lectura">
+      <div class="icono" id="lecIcono">…</div>
+      <div class="titulo" id="lecTitulo">Esperando datos</div>
+      <div class="desc" id="lecDesc">Conectando con el ESP32…</div>
+      <div class="decision-mini">Decisión del receptor: <b id="decNivel">—</b> <span id="decTexto"></span></div>
+    </section>
+
+    <!-- Mapa -->
+    <section class="panel c7">
+      <h2>Antejardín visto desde arriba <span style="text-transform:none;letter-spacing:0;font-weight:500">el montaje está abajo, mirando hacia la calle</span></h2>
+      <canvas class="mapa" id="mapa"></canvas>
+      <div class="leyenda">
+        <span><i style="background:var(--radar);opacity:.25"></i>Cobertura del radar (±60°)</span>
+        <span><i style="background:var(--acento)"></i>Haz del TF-Luna (2°)</span>
+        <span><i style="background:var(--mov)"></i>Radar: algo se mueve a esta distancia</span>
+        <span><i style="background:var(--radar)"></i>Radar: algo quieto a esta distancia</span>
+        <span><i style="background:var(--rojo)"></i>Los dos coinciden</span>
+      </div>
+    </section>
+
+    <!-- Lo que ve cada uno -->
+    <section class="panel c5">
+      <h2>Qué ve cada sensor</h2>
+      <div class="dos">
+        <div class="sensor">
+          <div class="nombre">TF-Luna</div>
+          <div class="valor" id="vLuna">—<small> cm</small></div>
+          <div class="nota" id="nLuna">—</div>
+        </div>
+        <div class="sensor">
+          <div class="nombre">Radar</div>
+          <div class="valor" id="vRadar">—<small> cm</small></div>
+          <div class="nota" id="nRadar">—</div>
+        </div>
+      </div>
+      <div class="acuerdo">
+        <div class="fila"><span>Diferencia entre los dos</span><b id="diff">—</b></div>
+        <div class="fila"><span>Coincidencias en esta sesión</span><b id="coinc">0</b></div>
+        <div class="fila"><span>Tendencia (últimos 3 s)</span><b id="tend">—</b></div>
+        <div class="barra" title="Qué tan de acuerdo están (100% = misma distancia)"><i id="barraAcuerdo" style="width:0"></i></div>
+      </div>
+      <div class="calib">
+        <button class="primario" id="btnCalibrar">Medir fondo</button>
+        <span class="nota" id="calibNota">Mide la distancia "vacía" del haz (la reja, la pared del frente…). Sal del antejardín y presiona; tarda 5 s.</span>
+      </div>
+      <div class="fila" style="margin-top:8px"><span>Fondo del TF-Luna</span><b id="fondo">sin medir</b></div>
+    </section>
+
+    <!-- Prueba de colocación -->
+    <section class="panel c5">
+      <h2>Prueba de colocación <span style="text-transform:none;letter-spacing:0;font-weight:500">se marca sola</span></h2>
+      <div id="lista"></div>
+    </section>
+
+    <!-- Diagramas -->
+    <section class="panel c7" id="instalacion">
+      <h2>Cómo colocar los dos dispositivos</h2>
+      <figure>
+        <svg viewBox="0 0 640 250" role="img" aria-label="Vista lateral del montaje">
+          <defs>
+            <linearGradient id="gCono" x1="0" x2="1"><stop offset="0" stop-color="var(--radar)" stop-opacity=".28"/><stop offset="1" stop-color="var(--radar)" stop-opacity="0"/></linearGradient>
+          </defs>
+          <!-- suelo -->
+          <rect x="0" y="210" width="640" height="40" fill="var(--pasto)"/>
+          <rect x="430" y="210" width="210" height="40" fill="var(--anden)"/>
+          <line x1="0" y1="210" x2="640" y2="210" stroke="var(--tenue)"/>
+          <text x="200" y="236" fill="var(--suave)" font-size="12" text-anchor="middle">antejardín</text>
+          <text x="535" y="236" fill="var(--suave)" font-size="12" text-anchor="middle">andén (a partir de 300 cm)</text>
+          <!-- pared -->
+          <rect x="30" y="40" width="22" height="170" fill="var(--gris-bg)" stroke="var(--borde)"/>
+          <text x="41" y="32" fill="var(--suave)" font-size="11" text-anchor="middle">fachada</text>
+          <!-- cono radar -->
+          <path d="M70 100 L640 -60 L640 260 Z" fill="url(#gCono)"/>
+          <!-- caja montaje -->
+          <rect x="52" y="86" width="26" height="40" rx="4" fill="var(--panel)" stroke="var(--texto)" stroke-width="1.5"/>
+          <rect x="72" y="92" width="8" height="12" rx="2" fill="var(--radar)"/>
+          <rect x="72" y="110" width="8" height="10" rx="2" fill="var(--acento)"/>
+          <text x="86" y="100" fill="var(--radar)" font-size="11">radar (arriba)</text>
+          <text x="86" y="128" fill="var(--acento)" font-size="11">TF-Luna (abajo)</text>
+          <!-- haz lidar -->
+          <line x1="80" y1="115" x2="560" y2="115" stroke="var(--acento)" stroke-width="2.5"/>
+          <!-- altura -->
+          <line x1="18" y1="115" x2="18" y2="210" stroke="var(--texto)" marker-start="url(#f)" />
+          <path d="M14 119 L18 113 L22 119 M14 206 L18 212 L22 206" stroke="var(--texto)" fill="none"/>
+          <text x="12" y="168" fill="var(--texto)" font-size="12" font-weight="600" transform="rotate(-90 12 168)" text-anchor="middle">100–120 cm</text>
+          <!-- persona -->
+          <g transform="translate(330 0)" fill="var(--suave)">
+            <circle cx="0" cy="88" r="11"/>
+            <rect x="-11" y="101" width="22" height="58" rx="8"/>
+            <rect x="-9" y="155" width="7" height="55" rx="3"/><rect x="2" y="155" width="7" height="55" rx="3"/>
+          </g>
+          <circle cx="319" cy="115" r="5" fill="var(--rojo)"/>
+          <text x="330" y="66" fill="var(--texto)" font-size="11" text-anchor="middle">el haz pega en el pecho</text>
+          <!-- regla -->
+          <line x1="80" y1="190" x2="430" y2="190" stroke="var(--tenue)" stroke-dasharray="4 3"/>
+          <text x="255" y="185" fill="var(--suave)" font-size="11" text-anchor="middle">~300 cm hasta el andén</text>
+          <!-- reja fondo -->
+          <rect x="560" y="95" width="6" height="115" fill="var(--tenue)"/>
+          <text x="563" y="88" fill="var(--suave)" font-size="11" text-anchor="middle">reja / fondo</text>
+          <text x="600" y="150" fill="var(--radar)" font-size="11" text-anchor="middle">radar</text>
+          <text x="600" y="164" fill="var(--radar)" font-size="11" text-anchor="middle">±60°</text>
+        </svg>
+        <figcaption>Vista de lado: los dos sensores en el mismo soporte, mirando al mismo lado, con el haz del TF-Luna paralelo al suelo.</figcaption>
+      </figure>
+      <figure style="margin-top:14px">
+        <svg viewBox="0 0 640 260" role="img" aria-label="Vista desde arriba del montaje">
+          <rect x="0" y="0" width="640" height="190" fill="var(--pasto)"/>
+          <rect x="0" y="0" width="640" height="46" fill="var(--anden)"/>
+          <text x="20" y="28" fill="var(--suave)" font-size="12">andén / calle</text>
+          <line x1="0" y1="46" x2="640" y2="46" stroke="var(--rojo)" stroke-dasharray="6 4"/>
+          <text x="628" y="62" fill="var(--rojo)" font-size="11" text-anchor="end">límite andén · 300 cm</text>
+          <!-- reja con puerta -->
+          <line x1="0" y1="52" x2="270" y2="52" stroke="var(--tenue)" stroke-width="4"/>
+          <line x1="370" y1="52" x2="640" y2="52" stroke="var(--tenue)" stroke-width="4"/>
+          <text x="320" y="72" fill="var(--suave)" font-size="11" text-anchor="middle">entrada</text>
+          <!-- camino -->
+          <rect x="295" y="52" width="50" height="160" fill="var(--panel)" opacity=".7"/>
+          <!-- fachada -->
+          <rect x="0" y="190" width="640" height="70" fill="var(--gris-bg)"/>
+          <text x="20" y="236" fill="var(--suave)" font-size="12">casa · fachada</text>
+          <!-- cono radar -->
+          <path d="M320 196 L39 34 L601 34 Z" fill="var(--radar)" opacity=".16"/>
+          <!-- haz -->
+          <line x1="320" y1="196" x2="320" y2="52" stroke="var(--acento)" stroke-width="3"/>
+          <!-- montaje -->
+          <rect x="304" y="190" width="32" height="16" rx="3" fill="var(--panel)" stroke="var(--texto)" stroke-width="1.5"/>
+          <text x="350" y="208" fill="var(--texto)" font-size="11">montaje (radar + TF-Luna + ESP32)</text>
+          <!-- persona -->
+          <circle cx="320" cy="110" r="10" fill="var(--rojo)"/>
+          <path d="M335 140 L335 118" stroke="var(--rojo)" stroke-width="2"/>
+          <path d="M330 124 L335 116 L340 124" stroke="var(--rojo)" stroke-width="2" fill="none"/>
+          <text x="346" y="132" fill="var(--texto)" font-size="11">quien entra camina por el haz</text>
+          <!-- persona al costado -->
+          <circle cx="140" cy="120" r="9" fill="var(--radar)"/>
+          <text x="140" y="146" fill="var(--texto)" font-size="11" text-anchor="middle">a un costado: solo el radar</text>
+        </svg>
+        <figcaption>Vista desde arriba: el haz del TF-Luna apunta por el camino de entrada y el radar cubre todo el antejardín.</figcaption>
+      </figure>
+    </section>
+
+    <section class="panel c12">
+      <h2>Instrucciones de montaje</h2>
+      <div class="rejilla">
+        <div class="pasos c6">
+          <div class="paso"><h3>Elige el lugar</h3>
+            <ul>
+              <li>En la <b>fachada</b> o el marco de la ventana, mirando hacia el antejardín y la entrada.</li>
+              <li><b>Bajo techo o alero</b>: la lluvia sobre el lente del TF-Luna da lecturas falsas, y el <b>sol directo</b> le reduce el alcance.</li>
+              <li><b>Sin vidrio delante del TF-Luna</b>: el láser se refleja en el vidrio y mide la ventana. El radar sí ve a través de plástico delgado o madera; el metal lo bloquea.</li>
+            </ul>
+          </div>
+          <div class="paso"><h3>Monta los dos juntos</h3>
+            <ul>
+              <li>En <b>el mismo soporte</b>, mirando <b>al mismo lado</b>: el <b>radar arriba</b> y el <b>TF-Luna abajo</b>, separados 3–5 cm.</li>
+              <li>A <b>100–120 cm del suelo</b>, la altura del pecho. Así el haz le pega al torso de quien entra y no se pierde por encima de un niño ni pega en el suelo.</li>
+              <li>Que <b>no vibre</b>: el radar detecta su propio movimiento si el soporte se mece con el viento.</li>
+            </ul>
+          </div>
+          <div class="paso"><h3>Apunta el TF-Luna</h3>
+            <ul>
+              <li><b>Quita la película protectora</b> del lente; si no, mide 0–10 cm.</li>
+              <li><b>Paralelo al suelo</b> (usa un nivel o una app de nivel en el celular).</li>
+              <li>Apúntalo <b>por el camino de entrada</b>, hacia la puerta de la reja. El haz es fino (unos 10 cm a 3 m), así que solo ve lo que cruza esa línea.</li>
+              <li>Al fondo debe haber algo a <b>menos de 8 m</b> (la reja, un muro o la casa del frente) para que la medida "vacía" sea estable.</li>
+              <li>Nada a <b>menos de 20 cm</b> del lente: ni cables ni el borde de la caja.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="pasos c6" style="counter-reset: paso 3">
+          <div class="paso"><h3>Orienta el radar</h3>
+            <ul>
+              <li>La <b>cara de la antena</b> va hacia el antejardín. Si dudas cuál es: camina frente a una cara y luego frente a la otra; la que marque más <b>energía</b> en el Panel es la de adelante.</li>
+              <li><b>Lejos de lo que se mueve solo</b>: plantas, cortinas, ventiladores o un perro dentro del alcance dan falsas alarmas.</li>
+              <li>El radar mide <b>solo la distancia, no la dirección</b>: por eso se combina con el TF-Luna, que sí sabe la dirección (su haz).</li>
+            </ul>
+          </div>
+          <div class="paso"><h3>Cablea y alimenta</h3>
+            <ul>
+              <li>Mantén las conexiones confirmadas: radar <code>TX→GPIO5</code>, <code>RX→GPIO6</code>, <code>OUT→GPIO4</code>; TF-Luna <code>TXD→GPIO20</code>, <code>RXD→GPIO21</code>; los dos a <b>5V y GND</b> por la protoboard.</li>
+              <li>Cables a los sensores de <b>menos de 1 m</b>. El ESP32 y la protoboard van en una caja; solo los sensores asoman.</li>
+              <li>Alimenta con un cargador USB de <b>al menos 1 A</b>; con poca corriente el ESP32 se reinicia.</li>
+            </ul>
+          </div>
+          <div class="paso"><h3>Verifica con esta pantalla</h3>
+            <ul>
+              <li>Sal del antejardín y presiona <b>Medir fondo</b>.</li>
+              <li>Entra <b>caminando por el haz</b> hacia el sensor: la tarjeta de arriba debe decir <b>"Persona confirmada por los dos"</b> y la distancia debe ir bajando.</li>
+              <li>Camina <b>por un costado</b>: debe decir <b>"Solo el radar ve algo"</b>.</li>
+              <li>Cuando toda la <b>Prueba de colocación</b> esté en verde, el montaje está listo.</li>
+            </ul>
+          </div>
+          <div class="aviso">El rango útil del TF-Luna es de 20 a 800 cm, y el del radar llega a unos 6 m. Si el antejardín es más largo, lo que esté más lejos lo verá solo el TF-Luna, o ninguno de los dos.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const TOL_CM = 75;             // diferencia máxima para decir que ven lo mismo
+const MARGEN_FONDO = 30;       // cm por delante del fondo para decir "hay algo en el haz"
+let ultimo = null, tUltimo = 0, decision = null;
+let fondo = null; try { const f = localStorage.getItem("fondoLuna"); if (f) fondo = JSON.parse(f); } catch (e) {}
+let calibrando = null, rastro = [], historia = [];
+let coincidencias = 0, vistoLibre = 0, ultimaCoinc = 0, energiaMax = 0;
+let lectura = null;
+
+// ---------- Tema ----------
+try { const t = localStorage.getItem("tema"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("btnTema").onclick = () => {
+  const oscuro = css("--bg").startsWith("#0");
+  const nuevo = oscuro ? "light" : "dark";
+  document.documentElement.dataset.theme = nuevo;
+  try { localStorage.setItem("tema", nuevo); } catch (e) {}
+};
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+// ---------- Datos ----------
+const es = new EventSource("/api/eventos");
+es.onmessage = ev => {
+  const m = JSON.parse(ev.data);
+  if (m.tipo === "estado") {
+    const p = $("pildora");
+    if (m.conectado) { p.className = "pildora ok"; $("pildoraTexto").textContent = "Conectado · " + m.puerto; }
+    else { p.className = "pildora mal"; $("pildoraTexto").textContent = m.cargando ? "Cargando firmware…" : "Sin conexión con el ESP32"; }
+    if (m.decision) aplicarDecision(m.decision);
+  } else if (m.tipo === "dato") aplicarDato(m);
+  else if (m.tipo === "decision") aplicarDecision(m);
+};
+es.onerror = () => { $("pildora").className = "pildora mal"; $("pildoraTexto").textContent = "Servidor caído"; };
+
+function aplicarDecision(d) {
+  decision = d;
+  const nombres = {SIN_SENAL: "SIN SEÑAL"};
+  $("decNivel").textContent = nombres[d.nivel] || d.nivel;
+  $("decNivel").style.color = {ALERTA: "var(--rojo)", TRANQUILO: "var(--verde)", MOVIMIENTO: "var(--ambar)", RECHAZADO: "var(--morado)"}[d.nivel] || "";
+  $("decTexto").textContent = "· " + d.texto;
+}
+
+function distRadar(r) {
+  const mov = r.estado === 1 || r.estado === 3, est = r.estado === 2 || r.estado === 3;
+  return {mov, est, movD: mov ? r.movD : null, estD: est ? r.estD : null, algo: r.ok && r.estado !== 0};
+}
+
+function aplicarDato(m) {
+  ultimo = m; tUltimo = Date.now();
+  const r = m.radar, l = m.luna, rd = distRadar(r);
+  const ahora = Date.now();
+
+  // Calibración del fondo
+  if (calibrando) {
+    if (l.valida) calibrando.v.push(l.dist); else calibrando.inval++;
+    if (r.ok && r.estado !== 0) calibrando.radarOcupado++;
+    const resta = Math.max(0, 5 - (ahora - calibrando.t0) / 1000);
+    $("calibNota").textContent = `Midiendo… ${resta.toFixed(1)} s. No te pares frente al sensor.`;
+    if (ahora - calibrando.t0 > 5000) terminarCalibracion();
+  }
+
+  // ¿Hay algo en el haz del TF-Luna?
+  const enHaz = l.valida && (fondo && fondo.cm ? l.dist < fondo.cm - MARGEN_FONDO : true);
+  if (l.valida) rastro.push({t: ahora, d: l.dist, enHaz});
+  while (rastro.length && rastro[0].t < ahora - 3000) rastro.shift();
+  historia.push({t: ahora, d: l.valida ? l.dist : null, estado: r.estado});
+  while (historia.length && historia[0].t < ahora - 30000) historia.shift();
+  if (r.ok && r.estado === 0) vistoLibre = ahora;
+  if (rd.mov) energiaMax = Math.max(energiaMax, r.movE);
+
+  // Diferencia entre los dos
+  let diff = null;
+  if (enHaz && rd.algo) {
+    const c = [rd.movD, rd.estD].filter(x => x !== null).map(x => Math.abs(x - l.dist));
+    diff = Math.min(...c);
+  }
+  const coinciden = diff !== null && diff <= TOL_CM;
+  if (coinciden && ahora - ultimaCoinc > 1000) { coincidencias++; ultimaCoinc = ahora; }
+
+  // Tendencia
+  const enH = rastro.filter(p => p.enHaz);
+  let tend = "—";
+  if (enH.length > 5) {
+    const delta = enH[enH.length - 1].d - enH[0].d;
+    tend = delta <= -30 ? `se acerca (${Math.round(-delta)} cm)` : delta >= 30 ? `se aleja (${Math.round(delta)} cm)` : "estable";
+  }
+
+  // Interpretación conjunta
+  let L;
+  if (!r.ok || !l.ok) L = ["no-coinciden", "⚠", "Falta un sensor", !r.ok ? "El radar no está mandando datos." : "El TF-Luna no está mandando datos."];
+  else if (!l.valida) L = ["no-coinciden", "?", "El TF-Luna no da una lectura válida",
+    `${(l.razon || "").replace(/^./, c => c.toUpperCase())}. Revisa la película del lente y hacia dónde apunta.` +
+    (rd.algo ? ` Mientras tanto, el radar detecta ${rd.mov ? "movimiento" : "presencia quieta"} a ${rd.movD ?? rd.estD} cm.` : "")];
+  else if (coinciden) L = ["confirmado", "●", `Persona confirmada por los dos a ${l.dist} cm`,
+    `El TF-Luna la ve en su haz y el radar detecta ${rd.mov ? "movimiento" : "presencia quieta"} a la misma distancia (diferencia ${Math.round(diff)} cm).` + (tend.startsWith("se acerca") ? " Se está acercando." : "")];
+  else if (enHaz && rd.algo) L = ["no-coinciden", "≠", "Los dos ven algo, pero a distancias distintas",
+    `TF-Luna: ${l.dist} cm · radar: ${[rd.movD, rd.estD].filter(x => x !== null).join(" / ")} cm. Puede haber dos cosas distintas, o alguien a un costado del haz.`];
+  else if (rd.algo) L = ["solo-radar", "◠", "Solo el radar ve algo",
+    `${rd.mov ? "Movimiento" : "Presencia quieta"} a ${rd.movD ?? rd.estD} cm, pero fuera del haz del TF-Luna: está a un costado del camino.`];
+  else if (enHaz) L = ["solo-lidar", "│", `Algo quieto en el haz a ${l.dist} cm`,
+    "El TF-Luna ve algo más cerca que el fondo, pero el radar no detecta a nadie: probablemente es un objeto (carro, caja, puerta abierta)." + (fondo ? "" : " Mide el fondo para que esto sea más preciso.")];
+  else if (!l.valida) L = ["no-coinciden", "?", "El TF-Luna no da una lectura válida", (l.razon || "") + ". Revisa la película del lente y hacia dónde apunta."];
+  else L = ["despejado", "✓", "Despejado", `El radar no detecta a nadie y el haz llega al fondo (${l.dist} cm).`];
+  lectura = L[0];
+  $("lectura").className = "panel c12 lectura " + L[0];
+  $("lecIcono").textContent = L[1]; $("lecTitulo").textContent = L[2]; $("lecDesc").textContent = L[3];
+
+  // Tarjetas
+  $("vLuna").innerHTML = (l.ok ? l.dist : "—") + "<small> cm</small>";
+  $("vLuna").style.color = l.valida ? "var(--acento)" : "var(--tenue)";
+  $("nLuna").textContent = !l.ok ? "sin datos" : !l.valida ? "no válida: " + l.razon : enHaz ? (fondo ? `algo en el haz (${fondo.cm ? fondo.cm - l.dist + " cm antes del fondo" : "sin fondo"})` : "lectura válida") : "haz libre, ve el fondo";
+  const rv = rd.movD ?? rd.estD;
+  $("vRadar").innerHTML = (r.ok && rd.algo ? rv : "—") + "<small> cm</small>";
+  $("vRadar").style.color = rd.mov ? "var(--mov)" : rd.est ? "var(--radar)" : "var(--tenue)";
+  $("nRadar").textContent = !r.ok ? "sin datos" : rd.mov && rd.est ? `movimiento ${r.movD} cm · quieto ${r.estD} cm` : rd.mov ? `movimiento · energía ${r.movE}%` : rd.est ? `presencia quieta · energía ${r.estE}%` : "nadie en el área";
+  $("diff").textContent = diff === null ? "—" : Math.round(diff) + " cm";
+  $("diff").style.color = diff === null ? "" : coinciden ? "var(--verde)" : "var(--ambar)";
+  $("coinc").textContent = coincidencias;
+  $("tend").textContent = tend;
+  $("barraAcuerdo").style.width = diff === null ? "0" : Math.max(0, 100 - diff / 3) + "%";
+  $("barraAcuerdo").style.background = coinciden ? "var(--verde)" : "var(--ambar)";
+
+  pintarLista();
+}
+
+// ---------- Calibración ----------
+$("btnCalibrar").onclick = () => {
+  calibrando = {t0: Date.now(), v: [], inval: 0, radarOcupado: 0};
+  $("btnCalibrar").disabled = true;
+};
+function terminarCalibracion() {
+  const c = calibrando; calibrando = null; $("btnCalibrar").disabled = false;
+  const total = c.v.length + c.inval;
+  if (!total) { $("calibNota").textContent = "No llegaron datos del TF-Luna. Revisa la conexión."; return; }
+  if (c.v.length < total * 0.6) {
+    fondo = {cm: null, t: Date.now()};
+    $("calibNota").textContent = "El haz no encuentra fondo (nada a menos de 8 m, o la lectura no es válida). Cualquier lectura válida contará como \"algo en el haz\".";
+  } else {
+    const s = [...c.v].sort((a, b) => a - b), med = s[Math.floor(s.length / 2)];
+    const dev = Math.sqrt(c.v.reduce((a, x) => a + (x - med) ** 2, 0) / c.v.length);
+    fondo = {cm: med, dev: Math.round(dev), t: Date.now()};
+    $("calibNota").textContent = `Fondo medido: ${med} cm (variación ±${Math.round(dev)} cm).` +
+      (c.radarOcupado > c.v.length * 0.3 ? " Ojo: el radar detectaba a alguien mientras se medía; repítelo con el área vacía." : "") +
+      (dev > 15 ? " La medida varía mucho: revisa que el sensor no se mueva y que el haz no pegue en plantas." : "");
+  }
+  try { localStorage.setItem("fondoLuna", JSON.stringify(fondo)); } catch (e) {}
+  pintarFondo();
+}
+function pintarFondo() {
+  $("fondo").textContent = !fondo ? "sin medir" : fondo.cm ? `${fondo.cm} cm (±${fondo.dev})` : "más de 8 m / sin fondo";
+}
+pintarFondo();
+
+// ---------- Prueba de colocación ----------
+function pintarLista() {
+  const l = ultimo && ultimo.luna, r = ultimo && ultimo.radar, ahora = Date.now();
+  const amps = historia.length ? null : null;
+  const items = [
+    ["Los dos sensores mandan datos", r && l && r.ok && l.ok, r && l ? `radar ${r.fps} tramas/s · TF-Luna ${l.fps} lecturas/s` : "esperando"],
+    ["El TF-Luna da una lectura válida", l && l.valida, l ? (l.valida ? `${l.dist} cm, intensidad ${l.amp}` : l.razon + " (¿película puesta? ¿pegado a algo?)") : "—"],
+    ["Fondo medido y estable", fondo && (fondo.cm === null || fondo.dev <= 15), fondo ? (fondo.cm ? `${fondo.cm} cm ±${fondo.dev}` : "sin fondo a menos de 8 m") : "presiona \"Medir fondo\" con el área vacía"],
+    ["El radar queda en reposo si no hay nadie", vistoLibre && ahora - vistoLibre < 60000, vistoLibre ? "visto libre hace " + Math.round((ahora - vistoLibre) / 1000) + " s" : "sal del área unos 15 s (si nunca baja, apunta a algo que se mueve)"],
+    ["Los dos coinciden al caminar por el haz", coincidencias >= 3, `${coincidencias} de 3 coincidencias`],
+    ["El radar ve movimiento con fuerza", energiaMax >= 50, energiaMax ? `energía máxima ${energiaMax}%` : "camina frente al radar"],
+  ];
+  $("lista").innerHTML = items.map(([t, ok, d]) =>
+    `<div class="chequeo ${ok ? "ok" : (ultimo ? "mal" : "")}"><span class="marca">${ok ? "✓" : "!"}</span><span class="t">${t}</span><span class="d">${d}</span></div>`).join("");
+}
+pintarLista();
+
+// ---------- Mapa ----------
+const cv = $("mapa");
+function dibujarMapa() {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const ahora = Date.now(), r = ultimo && Date.now() - tUltimo < 3000 ? ultimo.radar : null, l = ultimo && Date.now() - tUltimo < 3000 ? ultimo.luna : null;
+
+  const maxCm = Math.min(800, Math.max(500, fondo && fondo.cm ? fondo.cm + 80 : 0, l && l.valida ? l.dist + 80 : 0));
+  const ox = w / 2, oy = h - 34;
+  const esc = Math.min((oy - 16) / maxCm, (w / 2 - 10) / (maxCm * Math.sin(Math.PI / 3)));
+  const P = (cm, angDeg) => [ox + Math.sin(angDeg * Math.PI / 180) * cm * esc, oy - Math.cos(angDeg * Math.PI / 180) * cm * esc];
+
+  // suelo: antejardín y andén
+  g.fillStyle = css("--pasto"); g.fillRect(0, 0, w, oy);
+  const yAnden = oy - 300 * esc;
+  g.fillStyle = css("--anden"); g.fillRect(0, 0, w, yAnden);
+  g.strokeStyle = css("--rojo"); g.setLineDash([6, 4]); g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(0, yAnden); g.lineTo(w, yAnden); g.stroke(); g.setLineDash([]);
+  g.font = "12px system-ui"; g.fillStyle = css("--suave"); g.textAlign = "left";
+  g.fillText("andén / calle", 10, yAnden - 8);
+  g.fillText("antejardín", 10, yAnden + 18);
+  g.fillStyle = css("--rojo"); g.textAlign = "right"; g.fillText("límite andén · 300 cm", w - 10, yAnden - 8);
+  // fachada
+  g.fillStyle = css("--gris-bg"); g.fillRect(0, oy, w, h - oy);
+  g.fillStyle = css("--suave"); g.textAlign = "left"; g.fillText("casa · fachada", 10, oy + 22);
+
+  // cono del radar
+  g.fillStyle = css("--radar"); g.globalAlpha = .1;
+  g.beginPath(); g.moveTo(ox, oy); g.arc(ox, oy, Math.min(600, maxCm) * esc, -Math.PI / 2 - Math.PI / 3, -Math.PI / 2 + Math.PI / 3); g.closePath(); g.fill();
+  g.globalAlpha = 1;
+
+  // anillos
+  g.strokeStyle = css("--tenue"); g.lineWidth = 1; g.globalAlpha = .5; g.fillStyle = css("--tenue"); g.font = "11px system-ui"; g.textAlign = "left";
+  for (let cm = 100; cm <= maxCm; cm += 100) {
+    g.beginPath(); g.arc(ox, oy, cm * esc, -Math.PI / 2 - Math.PI / 3, -Math.PI / 2 + Math.PI / 3); g.stroke();
+    const [tx, ty] = P(cm, 62); g.globalAlpha = 1; g.fillText(cm + " cm", tx + 2, ty + 4); g.globalAlpha = .5;
+  }
+  g.globalAlpha = 1;
+
+  // arcos del radar (distancia, sin dirección)
+  if (r && r.ok) {
+    const arco = (cm, color, energia) => {
+      g.strokeStyle = color; g.globalAlpha = .35 + Math.min(energia, 100) / 160; g.lineWidth = 10; g.lineCap = "round";
+      g.beginPath(); g.arc(ox, oy, cm * esc, -Math.PI / 2 - Math.PI / 3 + .03, -Math.PI / 2 + Math.PI / 3 - .03); g.stroke();
+      g.globalAlpha = 1; g.lineCap = "butt";
+    };
+    if (r.estado === 2 || r.estado === 3) arco(r.estD, css("--radar"), r.estE);
+    if (r.estado === 1 || r.estado === 3) arco(r.movD, css("--mov"), r.movE);
+  }
+
+  // haz del TF-Luna
+  const alcance = l && l.valida ? l.dist : (fondo && fondo.cm) || maxCm;
+  const [hx, hy] = P(Math.min(alcance, maxCm), 0);
+  const hazValido = l && l.valida;
+  g.strokeStyle = hazValido ? css("--acento") : css("--tenue"); g.lineWidth = 4; g.globalAlpha = hazValido ? .9 : .6;
+  if (!hazValido) g.setLineDash([8, 6]);
+  g.beginPath(); g.moveTo(ox, oy); g.lineTo(hx, hy); g.stroke(); g.setLineDash([]);
+  if (!hazValido && l) {
+    g.globalAlpha = 1; g.fillStyle = css("--ambar"); g.font = "600 12px system-ui"; g.textAlign = "right";
+    g.fillText("TF-Luna sin lectura válida", ox - 10, oy - 150 * esc);
+  }
+  if (l && l.valida && alcance < maxCm) { g.globalAlpha = .25; g.setLineDash([3, 5]); g.lineWidth = 2; g.beginPath(); g.moveTo(hx, hy); g.lineTo(...P(maxCm, 0)); g.stroke(); g.setLineDash([]); }
+  g.globalAlpha = 1;
+
+  // fondo
+  if (fondo && fondo.cm) {
+    const [fx, fy] = P(fondo.cm, 0);
+    g.strokeStyle = css("--texto"); g.lineWidth = 2; g.beginPath(); g.moveTo(fx - 14, fy); g.lineTo(fx + 14, fy); g.stroke();
+    g.fillStyle = css("--suave"); g.textAlign = "left"; g.font = "11px system-ui"; g.fillText("fondo " + fondo.cm + " cm", fx + 18, fy + 4);
+  }
+
+  // rastro del TF-Luna
+  for (const p of rastro) {
+    if (!p.enHaz) continue;
+    const [x, y] = P(p.d, 0), a = 1 - (ahora - p.t) / 3000;
+    g.fillStyle = css("--acento"); g.globalAlpha = a * .35; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+  }
+  g.globalAlpha = 1;
+
+  // punto actual / coincidencia
+  if (l && l.valida) {
+    const [x, y] = P(l.dist, 0);
+    const conf = lectura === "confirmado";
+    if (conf) {
+      const pulso = (ahora % 1200) / 1200;
+      g.strokeStyle = css("--rojo"); g.globalAlpha = 1 - pulso; g.lineWidth = 3;
+      g.beginPath(); g.arc(x, y, 10 + pulso * 22, 0, 7); g.stroke(); g.globalAlpha = 1;
+    }
+    g.fillStyle = conf ? css("--rojo") : css("--acento");
+    g.beginPath(); g.arc(x, y, conf ? 9 : 6, 0, 7); g.fill();
+    g.fillStyle = css("--texto"); g.font = "600 12px system-ui"; g.textAlign = "left";
+    g.fillText(conf ? `persona · ${l.dist} cm` : `${l.dist} cm`, x + 14, y + 4);
+  }
+
+  // montaje
+  g.fillStyle = css("--panel"); g.strokeStyle = css("--texto"); g.lineWidth = 1.5;
+  g.beginPath(); g.roundRect(ox - 18, oy - 8, 36, 16, 4); g.fill(); g.stroke();
+  g.fillStyle = css("--radar"); g.fillRect(ox - 12, oy - 4, 8, 8);
+  g.fillStyle = css("--acento"); g.fillRect(ox + 4, oy - 4, 8, 8);
+  g.fillStyle = css("--texto"); g.font = "11px system-ui"; g.textAlign = "left"; g.fillText("montaje", ox + 24, oy + 4);
+
+  if (!ultimo || Date.now() - tUltimo > 3000) {
+    g.fillStyle = css("--panel"); g.globalAlpha = .75; g.fillRect(0, 0, w, h); g.globalAlpha = 1;
+    g.fillStyle = css("--texto"); g.font = "600 15px system-ui"; g.textAlign = "center";
+    g.fillText("Sin datos del ESP32", w / 2, h / 2);
+  }
+}
+(function bucle() { dibujarMapa(); requestAnimationFrame(bucle); })();
+setInterval(pintarLista, 1000);
+</script>
+</body>
+</html>

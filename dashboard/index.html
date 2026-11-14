@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel de vigilancia</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --borde: #e3e5ea; --texto: #1b1e24; --suave: #6a7180; --tenue: #9aa0ab;
+    --acento: #2f6fde; --acento-2: #8a5cf5;
+    --verde: #1f9d55; --verde-bg: #e6f6ec; --ambar: #c27c0e; --ambar-bg: #fdf3e1;
+    --rojo: #d23c3c; --rojo-bg: #fdeaea; --morado: #8a4fd8; --morado-bg: #f3ecfd; --gris: #7b8190; --gris-bg: #eef0f3;
+    --consola: #0f1420; --consola-texto: #c9d3e6; --sombra: 0 1px 2px rgba(16,24,40,.05);
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1116; --panel: #161a21; --borde: #262c36; --texto: #e7eaf0; --suave: #9aa3b2; --tenue: #687180;
+      --acento: #5b93f5; --acento-2: #a985ff;
+      --verde: #3fcb7e; --verde-bg: #11291c; --ambar: #f0b24a; --ambar-bg: #2e2412; --rojo: #f26b6b; --rojo-bg: #351616;
+      --morado: #b48cf7; --morado-bg: #261b3a; --gris: #8d95a3; --gris-bg: #1d222a; --consola: #0a0d12; --sombra: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1116; --panel: #161a21; --borde: #262c36; --texto: #e7eaf0; --suave: #9aa3b2; --tenue: #687180;
+    --acento: #5b93f5; --acento-2: #a985ff;
+    --verde: #3fcb7e; --verde-bg: #11291c; --ambar: #f0b24a; --ambar-bg: #2e2412; --rojo: #f26b6b; --rojo-bg: #351616;
+    --morado: #b48cf7; --morado-bg: #261b3a; --gris: #8d95a3; --gris-bg: #1d222a; --consola: #0a0d12; --sombra: none;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--texto);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .envoltura { max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  .sub { color: var(--suave); font-size: 13px; }
+  .vistas { display: flex; gap: 4px; background: var(--gris-bg); padding: 3px; border-radius: 10px; }
+  .vistas a { padding: 5px 12px; border-radius: 8px; color: var(--suave); text-decoration: none; font-weight: 500; font-size: 13px; }
+  .vistas a.activo { background: var(--panel); color: var(--texto); box-shadow: var(--sombra); }
+  .conexion { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .pildora { display: inline-flex; gap: 6px; align-items: center; padding: 5px 10px; border-radius: 999px;
+             background: var(--gris-bg); color: var(--suave); font-size: 13px; font-weight: 500; }
+  .pildora .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--gris); }
+  .pildora.ok { background: var(--verde-bg); color: var(--verde); } .pildora.ok .punto { background: var(--verde); }
+  .pildora.mal { background: var(--rojo-bg); color: var(--rojo); } .pildora.mal .punto { background: var(--rojo); }
+  .pildora.carga { background: var(--ambar-bg); color: var(--ambar); } .pildora.carga .punto { background: var(--ambar); }
+  select, button { font: inherit; color: var(--texto); background: var(--panel); border: 1px solid var(--borde);
+                   border-radius: 8px; padding: 6px 10px; }
+  button { cursor: pointer; font-weight: 500; }
+  button:hover { border-color: var(--suave); }
+  button.primario { background: var(--acento); border-color: var(--acento); color: #fff; }
+  button:disabled { opacity: .55; cursor: default; }
+  .rejilla { display: grid; gap: 14px; grid-template-columns: repeat(12, 1fr); }
+  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 16px; box-shadow: var(--sombra); min-width: 0; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); margin: 0 0 12px;
+              display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 600; }
+  .c12 { grid-column: span 12; } .c8 { grid-column: span 8; } .c6 { grid-column: span 6; } .c4 { grid-column: span 4; }
+  @media (max-width: 960px) { .c8, .c6, .c4 { grid-column: span 12; } }
+
+  /* Decisión */
+  .decision { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; border-left: 6px solid var(--gris); }
+  .decision .nivel { font-size: 30px; font-weight: 750; letter-spacing: -.02em; min-width: 200px; }
+  .decision .texto { font-size: 15px; flex: 1; min-width: 220px; }
+  .decision .edad { color: var(--suave); font-size: 13px; }
+  .decision.TRANQUILO { border-left-color: var(--verde); } .decision.TRANQUILO .nivel { color: var(--verde); }
+  .decision.MOVIMIENTO { border-left-color: var(--ambar); } .decision.MOVIMIENTO .nivel { color: var(--ambar); }
+  .decision.ALERTA { border-left-color: var(--rojo); background: var(--rojo-bg); } .decision.ALERTA .nivel { color: var(--rojo); }
+  .decision.RECHAZADO { border-left-color: var(--morado); } .decision.RECHAZADO .nivel { color: var(--morado); }
+  .decision.SIN_SENAL .nivel { color: var(--gris); }
+  .reglas { color: var(--tenue); font-size: 12px; width: 100%; }
+
+  /* Tarjetas de sensores */
+  .grande { font-size: 44px; font-weight: 700; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .grande small { font-size: 18px; color: var(--suave); font-weight: 500; margin-left: 4px; }
+  .fila { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid var(--borde); font-variant-numeric: tabular-nums; }
+  .fila:first-of-type { border-top: 0; }
+  .fila span:first-child { color: var(--suave); }
+  .etiqueta { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--gris-bg); color: var(--suave); }
+  .etiqueta.ok { background: var(--verde-bg); color: var(--verde); }
+  .etiqueta.mal { background: var(--rojo-bg); color: var(--rojo); }
+  .etiqueta.aviso { background: var(--ambar-bg); color: var(--ambar); }
+  .razon { color: var(--ambar); font-size: 12px; min-height: 18px; margin: 6px 0 8px; }
+  .barra { position: relative; height: 10px; background: var(--gris-bg); border-radius: 6px; margin: 12px 0 4px; overflow: visible; }
+  .barra .relleno { position: absolute; left: 0; top: 0; bottom: 0; background: var(--acento); border-radius: 6px; transition: width .2s; }
+  .barra .marca { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--rojo); }
+  .escala { display: flex; justify-content: space-between; color: var(--tenue); font-size: 11px; }
+  .estado-radar { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+  .led { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--gris-bg); border: 1px solid var(--borde); vertical-align: -1px; }
+  .led.on { background: var(--verde); border-color: var(--verde); box-shadow: 0 0 8px var(--verde); }
+  .energia { display: inline-block; width: 70px; height: 6px; background: var(--gris-bg); border-radius: 3px; vertical-align: middle; margin-left: 6px; position: relative; overflow: hidden; }
+  .energia i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--acento-2); }
+
+  /* Gráfica */
+  .lienzo { width: 100%; height: 260px; display: block; }
+  .leyenda { display: flex; gap: 14px; flex-wrap: wrap; color: var(--suave); font-size: 12px; margin-top: 8px; }
+  .leyenda b { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+  .seg { display: inline-flex; border: 1px solid var(--borde); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 3px 9px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+  .seg button.activo { background: var(--acento); color: #fff; }
+
+  /* Cableado */
+  .cable { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--borde); }
+  .cable:first-of-type { border-top: 0; }
+  .cable .nombre { font-weight: 600; }
+  .cable .detalle { grid-column: 1 / -1; color: var(--suave); font-size: 12px; }
+
+  /* Consolas */
+  .consola { background: var(--consola); color: var(--consola-texto); font: 12px/1.5 var(--mono); border-radius: 8px;
+             padding: 10px 12px; height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+  .consola .alerta { color: #ff9b8a; } .consola .hora { color: #6d7a93; }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .nota { color: var(--suave); font-size: 12px; margin: 8px 0; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--gris-bg); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="envoltura">
+  <header>
+    <div>
+      <h1>Vigilancia del antejardín</h1>
+      <div class="sub">Panel local · ESP32-C3 SuperMini + TF-Luna + LD2410C · grupo 7788</div>
+    </div>
+    <div class="conexion">
+      <nav class="vistas"><a href="/" class="activo">Panel</a><a href="/conjunto">En conjunto</a><a href="/conjunto#instalacion">Instalación</a></nav>
+      <span class="pildora" id="pildora"><span class="punto"></span><span id="pildoraTexto">Sin conexión</span></span>
+      <select id="puertos" title="Puerto serial"><option value="">Automático</option></select>
+      <button id="btnConexion">Desconectar</button>
+      <button id="btnTema" title="Cambiar tema">◐</button>
+    </div>
+  </header>
+
+  <div class="rejilla">
+    <section class="panel c12 decision SIN_SENAL" id="decision">
+      <div class="nivel" id="decNivel">SIN SEÑAL</div>
+      <div class="texto" id="decTexto">Esperando datos del ESP32…</div>
+      <div class="edad" id="decEdad"></div>
+      <div class="reglas">Decide cada 2 s como <code>receptor.py</code>: ALERTA si hay movimiento y la distancia baja 3 veces seguidas, al menos 30 cm en total, terminando a 300 cm o menos. Solo se usan distancias de 20 a 800 cm con intensidad entre 100 y 65534. Si pasan 7 s sin datos: SIN SEÑAL.</div>
+    </section>
+
+    <section class="panel c4">
+      <h2>TF-Luna · distancia <span class="etiqueta" id="lunaEstado">—</span></h2>
+      <div class="grande" id="lunaDist">—<small>cm</small></div>
+      <div class="razon" id="lunaRazon"></div>
+      <div class="barra"><div class="relleno" id="lunaBarra" style="width:0"></div><div class="marca" style="left:37.5%" title="Límite andén 300 cm"></div></div>
+      <div class="escala"><span>0</span><span>300 andén</span><span>800 cm</span></div>
+      <div style="margin-top:10px">
+        <div class="fila"><span>Intensidad</span><span id="lunaAmp">—</span></div>
+        <div class="fila"><span>Temperatura interna</span><span id="lunaTemp">—</span></div>
+        <div class="fila"><span>Lecturas por segundo</span><span id="lunaFps">—</span></div>
+      </div>
+    </section>
+
+    <section class="panel c4">
+      <h2>Radar LD2410C <span class="etiqueta" id="radarEstadoEt">—</span></h2>
+      <div class="estado-radar" id="radarEstado">—</div>
+      <div class="razon" id="radarRazon"></div>
+      <div>
+        <div class="fila"><span>Objetivo en movimiento</span><span><span id="radarMov">—</span><span class="energia"><i id="radarMovE" style="width:0"></i></span></span></div>
+        <div class="fila"><span>Objetivo quieto</span><span><span id="radarEst">—</span><span class="energia"><i id="radarEstE" style="width:0"></i></span></span></div>
+        <div class="fila"><span>Distancia de detección</span><span id="radarDet">—</span></div>
+        <div class="fila"><span>Pin OUT (GPIO4)</span><span><span class="led" id="radarOut"></span> <span id="radarOutTxt">—</span></span></div>
+        <div class="fila"><span>Tramas por segundo</span><span id="radarFps">—</span></div>
+      </div>
+    </section>
+
+    <section class="panel c4">
+      <h2>Placa ESP32-C3</h2>
+      <div class="fila"><span>Firmware</span><span id="fw">—</span></div>
+      <div class="fila"><span>Encendida hace</span><span id="uptime">—</span></div>
+      <div class="fila"><span>Motivo del último reinicio</span><span id="reinicio">—</span></div>
+      <div class="fila"><span>Reaperturas UART radar / TF-Luna</span><span id="reconex">—</span></div>
+      <div class="fila"><span>Tramas TF-Luna con error</span><span id="malas">—</span></div>
+      <div class="fila"><span>Último dato</span><span id="edadDato">—</span></div>
+      <p class="nota">Si el motivo dice <b>caída de voltaje</b> o se ven muchas reaperturas, revisa los cables de 5V y GND en la protoboard.</p>
+    </section>
+
+    <section class="panel c8">
+      <h2>Últimos segundos
+        <span class="seg" id="ventana"><button data-s="30">30 s</button><button data-s="60" class="activo">1 min</button><button data-s="300">5 min</button></span>
+      </h2>
+      <canvas class="lienzo" id="grafica"></canvas>
+      <div class="leyenda">
+        <span><b style="background:var(--acento)"></b>TF-Luna (válida)</span>
+        <span><b style="background:var(--tenue)"></b>TF-Luna (no válida)</span>
+        <span><b style="background:var(--acento-2)"></b>Radar: distancia de detección</span>
+        <span><b style="background:var(--ambar);opacity:.35;height:8px"></b>Radar ve movimiento</span>
+        <span><b style="background:var(--rojo)"></b>Límite andén 300 cm</span>
+      </div>
+    </section>
+
+    <section class="panel c4">
+      <h2>Cableado <button id="btnChequeo">Repetir chequeo</button></h2>
+      <div id="cables"></div>
+    </section>
+
+    <section class="panel c6">
+      <h2>Notificaciones Telegram <span class="etiqueta" id="tgEstado">—</span></h2>
+      <div class="fila"><span>Bot (token)</span><span id="tgToken">—</span></div>
+      <div class="fila"><span>Chat del residente</span><span id="tgChat">—</span></div>
+      <div class="fila"><span>Avisos enviados</span><span id="tgEnviados">0</span></div>
+      <div class="fila"><span>Último aviso</span><span id="tgUltimo">—</span></div>
+      <div class="razon" id="tgError"></div>
+      <div class="acciones">
+        <button id="btnTgChat">Buscar mi chat_id</button>
+        <button class="primario" id="btnTgPrueba">Enviar prueba</button>
+      </div>
+      <p class="nota">Avisa al celular solo lo importante: <b>ALERTA</b> (como máximo una por minuto), <b>SIN SEÑAL</b>, <b>señal recuperada</b> y <b>datos rechazados</b> durante 30 s. MOVIMIENTO y TRANQUILO no se avisan, para no llenar el celular de ruido. El token va en <code>dashboard/telegram.json</code>, que no se sube al repositorio.</p>
+    </section>
+
+    <section class="panel c6">
+      <h2>Firmware <span class="etiqueta" id="cargaEstado">—</span></h2>
+      <div class="acciones">
+        <button class="primario" id="btnCargar">Compilar y cargar al ESP32</button>
+        <span class="nota">Compila la carpeta <code>firmware/</code> con PlatformIO. El panel libera el puerto solo.</span>
+      </div>
+      <div class="consola" id="consolaCarga" style="margin-top:10px">Aquí aparece la salida de PlatformIO.</div>
+    </section>
+
+    <section class="panel c12">
+      <h2>Registro
+        <span class="acciones">
+          <label class="nota" style="margin:0"><input type="checkbox" id="verCrudo"> texto crudo</label>
+          <button id="btnLimpiar">Limpiar</button>
+          <a href="/api/csv"><button>Descargar CSV</button></a>
+        </span>
+      </h2>
+      <div class="consola" id="registro"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const ESTADOS = {0: "Nadie", 1: "Movimiento", 2: "Presencia quieta", 3: "Movimiento + quieto"};
+const NIVELES = {TRANQUILO: "TRANQUILO", MOVIMIENTO: "MOVIMIENTO", ALERTA: "ALERTA", RECHAZADO: "RECHAZADO", SIN_SENAL: "SIN SEÑAL"};
+let est = {}, ultimo = null, tUltimo = 0, decision = null, puntos = [], ventanaS = 60;
+let outVisto0 = false, outVisto1 = false, coincid = [];
+
+// ---------- Tema ----------
+try { const t = localStorage.getItem("tema"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("btnTema").onclick = () => {
+  const oscuro = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim().startsWith("#0");
+  const nuevo = oscuro ? "light" : "dark";
+  document.documentElement.dataset.theme = nuevo;
+  try { localStorage.setItem("tema", nuevo); } catch (e) {}
+  dibujar();
+};
+
+// ---------- API ----------
+const post = (url, cuerpo) => fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(cuerpo || {})});
+async function cargarPuertos() {
+  try {
+    const lista = await (await fetch("/api/puertos")).json();
+    const sel = $("puertos"), actual = sel.value;
+    sel.innerHTML = '<option value="">Automático</option>' + lista.map(p =>
+      `<option value="${p.puerto}">${p.puerto}${p.esp32 ? " · ESP32" : ""}</option>`).join("");
+    sel.value = actual;
+  } catch (e) {}
+}
+$("puertos").onfocus = cargarPuertos;
+$("btnConexion").onclick = () => {
+  if (est.conectado) post("/api/desconectar");
+  else post("/api/conectar", {puerto: $("puertos").value});
+  setTimeout(() => fetch("/api/estado").then(r => r.json()).then(aplicarEstado), 300);
+};
+$("btnChequeo").onclick = () => post("/api/comando", {comando: "chequeo"});
+$("btnCargar").onclick = () => {
+  $("consolaCarga").textContent = "";
+  post("/api/cargar");
+};
+$("btnLimpiar").onclick = () => { $("registro").innerHTML = ""; };
+document.querySelectorAll("#ventana button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#ventana button").forEach(x => x.classList.remove("activo"));
+  b.classList.add("activo"); ventanaS = +b.dataset.s; dibujar();
+});
+
+// ---------- Eventos ----------
+function conectarEventos() {
+  const es = new EventSource("/api/eventos");
+  es.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    switch (m.tipo) {
+      case "estado": aplicarEstado(m); break;
+      case "dato": aplicarDato(m); break;
+      case "decision": aplicarDecision(m); break;
+      case "log": registrar(m.texto, m.nivel === "alerta"); break;
+      case "crudo": if ($("verCrudo").checked) registrar(m.texto, false, true); break;
+      case "carga": agregarCarga(m.linea); break;
+      case "carga_fin": $("cargaEstado").textContent = m.ok ? "cargado" : "falló";
+                        $("cargaEstado").className = "etiqueta " + (m.ok ? "ok" : "mal"); break;
+      case "info": est.info = m; pintarPlaca(); pintarCables(); break;
+      case "chequeo": est.chequeo = m; pintarCables(); break;
+      case "telegram": pintarTelegram(m); break;
+    }
+  };
+  es.onerror = () => { $("pildora").className = "pildora mal"; $("pildoraTexto").textContent = "Servidor caído"; };
+}
+
+function aplicarEstado(m) {
+  est = Object.assign(est, m);
+  const p = $("pildora");
+  if (m.cargando) { p.className = "pildora carga"; $("pildoraTexto").textContent = "Cargando firmware…"; }
+  else if (m.conectado) { p.className = "pildora ok"; $("pildoraTexto").textContent = "Conectado · " + m.puerto; }
+  else { p.className = "pildora mal"; $("pildoraTexto").textContent = "Sin conexión con el ESP32"; }
+  $("btnConexion").textContent = m.conectado ? "Desconectar" : "Conectar";
+  $("btnCargar").disabled = !!m.cargando;
+  if (m.cargando) { $("cargaEstado").textContent = "cargando"; $("cargaEstado").className = "etiqueta aviso"; }
+  if (m.decision) aplicarDecision(m.decision);
+  if (m.telegram) pintarTelegram(m.telegram);
+  pintarPlaca(); pintarCables();
+}
+
+function pintarTelegram(t) {
+  const listo = t.token && t.chat_id;
+  $("tgEstado").textContent = t.error ? "error" : listo ? "activo" : "sin configurar";
+  $("tgEstado").className = "etiqueta " + (t.error ? "mal" : listo ? "ok" : "aviso");
+  $("tgToken").textContent = t.token ? "configurado" : "falta (telegram.json)";
+  $("tgChat").textContent = t.chat_id ? "configurado" : "falta: usa \"Buscar mi chat_id\"";
+  $("tgEnviados").textContent = t.enviados;
+  $("tgUltimo").textContent = t.ultimo ? `${t.ultimo.tipo} · ${new Date(t.ultimo.t * 1000).toLocaleTimeString("es-CO", {hour12: false})}` : "—";
+  $("tgError").textContent = t.error ? "⚠ " + t.error : "";
+  $("btnTgPrueba").disabled = !listo;
+  $("btnTgChat").disabled = !t.token;
+}
+$("btnTgChat").onclick = async () => {
+  const r = await (await post("/api/telegram/chatid")).json();
+  $("tgError").textContent = r.ok ? "" : "⚠ " + r.error;
+  fetch("/api/estado").then(x => x.json()).then(aplicarEstado);
+};
+$("btnTgPrueba").onclick = async () => {
+  const r = await (await post("/api/telegram/prueba")).json();
+  if (!r.ok) $("tgError").textContent = "⚠ " + r.error;
+};
+
+function aplicarDecision(d) {
+  decision = d;
+  const el = $("decision");
+  el.className = "panel c12 decision " + d.nivel;
+  $("decNivel").textContent = NIVELES[d.nivel] || d.nivel;
+  $("decTexto").textContent = d.texto.charAt(0).toUpperCase() + d.texto.slice(1);
+}
+
+function aplicarDato(m) {
+  ultimo = m; tUltimo = Date.now();
+  const r = m.radar, l = m.luna;
+
+  // TF-Luna
+  $("lunaDist").innerHTML = (l.ok ? l.dist : "—") + "<small>cm</small>";
+  $("lunaDist").style.color = l.valida ? "" : "var(--tenue)";
+  $("lunaEstado").textContent = !l.ok ? "sin datos" : l.valida ? "válida" : "no válida";
+  $("lunaEstado").className = "etiqueta " + (!l.ok ? "mal" : l.valida ? "ok" : "aviso");
+  $("lunaRazon").textContent = l.razon ? "⚠ " + l.razon : "";
+  $("lunaBarra").style.width = Math.min(100, (l.dist || 0) / 8) + "%";
+  $("lunaBarra").style.background = l.valida ? "var(--acento)" : "var(--tenue)";
+  $("lunaAmp").textContent = l.ok ? l.amp : "—";
+  $("lunaTemp").textContent = l.ok ? l.temp.toFixed(1) + " °C" : "—";
+  $("lunaFps").textContent = l.fps;
+
+  // Radar
+  $("radarEstado").textContent = r.ok ? ESTADOS[r.estado] || "?" : "Sin datos";
+  $("radarEstadoEt").textContent = r.ok ? (r.estado ? "presencia" : "libre") : "sin datos";
+  $("radarEstadoEt").className = "etiqueta " + (!r.ok ? "mal" : r.estado ? "aviso" : "ok");
+  $("radarRazon").textContent = r.ok ? "" : "⚠ el radar no manda tramas";
+  const movOn = r.estado === 1 || r.estado === 3, estOn = r.estado === 2 || r.estado === 3;
+  $("radarMov").textContent = movOn ? r.movD + " cm" : "—";
+  $("radarEst").textContent = estOn ? r.estD + " cm" : "—";
+  $("radarMovE").style.width = (movOn ? r.movE : 0) + "%";
+  $("radarEstE").style.width = (estOn ? r.estE : 0) + "%";
+  // El LD2410C suele mandar detD = 0: usar la distancia del objetivo activo
+  r.det = r.detD || (movOn ? r.movD : estOn ? r.estD : 0);
+  $("radarDet").textContent = r.estado ? r.det + " cm" : "—";
+  $("radarOut").className = "led" + (r.out ? " on" : "");
+  $("radarOutTxt").textContent = r.out ? "alto (presencia)" : "bajo";
+  $("radarFps").textContent = r.fps;
+
+  // Coherencia del OUT con el estado del radar
+  if (r.ok) {
+    if (r.out) outVisto1 = true; else outVisto0 = true;
+    coincid.push((r.out === 1) === (r.estado !== 0)); if (coincid.length > 100) coincid.shift();
+  }
+
+  puntos.push({t: m.t * 1000, luna: l.ok ? l.dist : null, valida: l.valida, det: r.ok && r.estado ? r.det : null, mov: r.ok && movOn});
+  const corte = Date.now() - 300000;
+  while (puntos.length && puntos[0].t < corte) puntos.shift();
+  pintarCables();
+}
+
+function pintarPlaca() {
+  const i = est.info;
+  $("fw").textContent = i ? i.fw : "—";
+  $("uptime").textContent = i ? duracion(i.uptime) : "—";
+  $("reinicio").textContent = i ? i.reinicio : "—";
+  $("reinicio").style.color = i && /voltaje|fallo|watchdog/.test(i.reinicio) ? "var(--rojo)" : "";
+  $("reconex").textContent = i ? `${i.reconexRadar} / ${i.reconexLuna}` : "—";
+  $("malas").textContent = i ? i.lunaMalas : "—";
+}
+
+function pintarCables() {
+  const r = ultimo && ultimo.radar, l = ultimo && ultimo.luna, c = est.chequeo || est.info, fresco = Date.now() - tUltimo < 3000;
+  const pct = coincid.length ? Math.round(100 * coincid.filter(Boolean).length / coincid.length) : null;
+  const items = [
+    ["Radar TX → GPIO5", fresco && r && r.fps > 0 ? "ok" : "mal", r ? `${r.fps} tramas/s a 256000 baudios` : "sin datos"],
+    ["Radar RX → GPIO6", !c ? "" : c.radarAck ? "ok" : "mal", !c ? "falta chequeo" : c.radarAck ? "el radar responde a los comandos" : "el radar no respondió al comando"],
+    ["Radar OUT → GPIO4", pct === null ? "" : pct >= 80 && outVisto0 && outVisto1 ? "ok" : pct >= 80 ? "aviso" : "mal",
+      pct === null ? "sin datos" : `coincide con el radar ${pct}% · visto en 1: ${outVisto1 ? "sí" : "no"} · en 0: ${outVisto0 ? "sí" : "no (aléjate del radar)"}`],
+    ["TF-Luna TXD → GPIO20", fresco && l && l.fps > 0 ? "ok" : "mal", l ? `${l.fps} lecturas/s a 115200 baudios` : "sin datos"],
+    ["TF-Luna RXD → GPIO21", !c ? "" : c.lunaVersion ? "ok" : "mal", !c ? "falta chequeo" : c.lunaVersion ? "responde, versión " + c.lunaVersion : "no respondió al comando de versión"],
+    ["Alimentación 5V / GND", !est.info ? "" : /voltaje/.test(est.info.reinicio) ? "mal" : "ok", est.info ? "último reinicio: " + est.info.reinicio : "sin info"],
+  ];
+  const txt = {ok: "bien", mal: "revisar", aviso: "a medias", "": "—"};
+  $("cables").innerHTML = items.map(([n, s, d]) =>
+    `<div class="cable"><span class="nombre">${n}</span><span class="etiqueta ${s}">${txt[s]}</span><span class="detalle">${d}</span></div>`).join("");
+}
+
+// ---------- Consolas ----------
+const hora = () => new Date().toLocaleTimeString("es-CO", {hour12: false});
+function registrar(texto, alerta, crudo) {
+  const el = $("registro"), abajo = el.scrollTop + el.clientHeight >= el.scrollHeight - 10;
+  const d = document.createElement("div");
+  d.innerHTML = `<span class="hora">${hora()}</span> `;
+  const s = document.createElement("span"); s.textContent = (crudo ? "» " : "") + texto;
+  if (alerta) s.className = "alerta";
+  d.appendChild(s); el.appendChild(d);
+  while (el.childNodes.length > 500) el.removeChild(el.firstChild);
+  if (abajo) el.scrollTop = el.scrollHeight;
+}
+function agregarCarga(linea) {
+  const el = $("consolaCarga");
+  el.textContent += linea + "\n";
+  if (el.textContent.length > 60000) el.textContent = el.textContent.slice(-50000);
+  el.scrollTop = el.scrollHeight;
+}
+function duracion(s) {
+  if (s < 60) return s + " s";
+  if (s < 3600) return Math.floor(s / 60) + " min " + (s % 60) + " s";
+  return Math.floor(s / 3600) + " h " + Math.floor((s % 3600) / 60) + " min";
+}
+
+// ---------- Gráfica ----------
+const cv = $("grafica");
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function dibujar() {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const izq = 40, der = 8, arr = 8, aba = 22, W = w - izq - der, H = h - arr - aba;
+  const ahora = Date.now(), t0 = ahora - ventanaS * 1000;
+  const vis = puntos.filter(p => p.t >= t0);
+  let maxV = 400;
+  vis.forEach(p => { if (p.luna) maxV = Math.max(maxV, p.luna); if (p.det) maxV = Math.max(maxV, p.det); });
+  maxV = Math.min(800, Math.ceil(maxV * 1.1 / 100) * 100);
+  const X = t => izq + (t - t0) / (ventanaS * 1000) * W, Y = v => arr + H - Math.min(v, maxV) / maxV * H;
+
+  g.font = "11px system-ui"; g.fillStyle = css("--tenue"); g.strokeStyle = css("--borde"); g.lineWidth = 1;
+  for (let v = 0; v <= maxV; v += maxV <= 400 ? 100 : 200) {
+    g.beginPath(); g.moveTo(izq, Y(v) + .5); g.lineTo(izq + W, Y(v) + .5); g.stroke();
+    g.textAlign = "right"; g.fillText(v, izq - 6, Y(v) + 4);
+  }
+  g.textAlign = "center";
+  const paso = ventanaS <= 60 ? 10 : 60;
+  for (let s = 0; s <= ventanaS; s += paso) g.fillText(s === 0 ? "ahora" : "-" + s + " s", X(ahora - s * 1000), h - 6);
+
+  // Bandas de movimiento
+  g.fillStyle = css("--ambar"); g.globalAlpha = .14;
+  for (let i = 0; i < vis.length; i++) if (vis[i].mov) {
+    const x1 = X(vis[i].t), x2 = i + 1 < vis.length ? X(vis[i + 1].t) : X(ahora);
+    g.fillRect(x1, arr, Math.max(1, x2 - x1), H);
+  }
+  g.globalAlpha = 1;
+
+  // Límite andén
+  g.strokeStyle = css("--rojo"); g.setLineDash([5, 4]); g.beginPath(); g.moveTo(izq, Y(300)); g.lineTo(izq + W, Y(300)); g.stroke(); g.setLineDash([]);
+
+  function linea(campo, color, filtro, ancho) {
+    g.strokeStyle = color; g.lineWidth = ancho; g.lineJoin = "round"; g.beginPath(); let abierta = false, prev = null;
+    for (const p of vis) {
+      const v = p[campo], ok = v !== null && filtro(p) && (!prev || p.t - prev.t < 1500);
+      if (ok) { abierta ? g.lineTo(X(p.t), Y(v)) : g.moveTo(X(p.t), Y(v)); abierta = true; } else abierta = false;
+      prev = p;
+    }
+    g.stroke();
+  }
+  linea("det", css("--acento-2"), () => true, 1.5);
+  linea("luna", css("--tenue"), p => !p.valida, 1.5);
+  linea("luna", css("--acento"), p => p.valida, 2.2);
+}
+new ResizeObserver(dibujar).observe(cv);
+
+// ---------- Reloj ----------
+setInterval(() => {
+  dibujar();
+  const edad = tUltimo ? (Date.now() - tUltimo) / 1000 : null;
+  $("edadDato").textContent = edad === null ? "nunca" : edad < 1 ? "ahora" : "hace " + edad.toFixed(0) + " s";
+  $("edadDato").style.color = edad !== null && edad > 3 ? "var(--rojo)" : "";
+  if (decision) $("decEdad").textContent = "actualizado " + hora();
+}, 250);
+
+cargarPuertos();
+conectarEventos();
+</script>
+</body>
+</html>

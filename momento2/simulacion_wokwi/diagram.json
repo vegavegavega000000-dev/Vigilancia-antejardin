@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-c3-devkitm-1", "id": "esp1", "top": 210, "left": 180, "attrs": {} },
+    { "type": "wokwi-pir-motion-sensor", "id": "pir1", "top": 60, "left": 20, "attrs": {} },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "ultra1",
+      "top": 40,
+      "left": 300,
+      "attrs": { "distance": "300" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 400,
+      "left": 40,
+      "attrs": { "color": "red" }
+    },
+    { "type": "wokwi-slide-switch", "id": "sw1", "top": 420, "left": 300, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp1:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp1:RX", "$serialMonitor:TX", "", [] ],
+    [ "pir1:VCC", "esp1:5V", "red", [] ],
+    [ "pir1:GND", "esp1:GND.1", "black", [] ],
+    [ "pir1:OUT", "esp1:2", "green", [] ],
+    [ "ultra1:VCC", "esp1:5V", "red", [] ],
+    [ "ultra1:GND", "esp1:GND.1", "black", [] ],
+    [ "ultra1:TRIG", "esp1:3", "blue", [] ],
+    [ "ultra1:ECHO", "esp1:10", "purple", [] ],
+    [ "btn1:1.l", "esp1:4", "orange", [] ],
+    [ "btn1:2.l", "esp1:GND.1", "black", [] ],
+    [ "sw1:2", "esp1:5", "yellow", [] ],
+    [ "sw1:1", "esp1:GND.1", "black", [] ],
+    [ "sw1:3", "esp1:3V3", "red", [] ]
+  ],
+  "dependencies": {}
+}
